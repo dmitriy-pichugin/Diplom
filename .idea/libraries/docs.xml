@@ -1,0 +1,12 @@
+<component name="libraryTable">
+  <library name="docs">
+    <CLASSES />
+    <JAVADOC>
+      <root url="jar://$USER_HOME$/Documents/jsqlparser/jsqlparser-0.7.0.jar!/jsqlparser/docs" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$USER_HOME$/Documents/jsqlparser/jsqlparser-0.7.0.jar!/jsqlparser/src" />
+      <root url="jar://$USER_HOME$/Documents/jsqlparser/jsqlparser-0.7.0.jar!/jsqlparser/testsrc" />
+    </SOURCES>
+  </library>
+</component>
