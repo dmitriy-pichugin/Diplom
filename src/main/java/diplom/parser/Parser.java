@@ -48,6 +48,10 @@ class Parser {
         }
     }
 
+    Session getSession() {
+        return session;
+    }
+
     void parse(String[] args) {
         for (String filename : args) {
             if (checkCreateAsSelect(filename))
@@ -56,7 +60,7 @@ class Parser {
             try {
                 Statement statement = ccjSqlParserManager.parse(new InputStreamReader(
                         new FileInputStream(filename), StandardCharsets.UTF_8));
-                checkClass(statement);
+                parse(statement);
             } catch (FileNotFoundException e) {
                 logger.severe("File not found: " + filename);
                 e.printStackTrace();
@@ -69,11 +73,16 @@ class Parser {
             parseCreateAsSelect();
     }
 
-    private void checkClass(Statement statement) {
+    private void parse(Statement statement) {
         if (statement instanceof CreateTable) {
-            if (checkExistence(((CreateTable) statement).getTable()))
-                this.session.setTable((CreateTable) statement);
-            logger.info("Parsed successfully: " + ((CreateTable) statement).getTable().getWholeTableName());
+            if (checkExistence(((CreateTable) statement).getTable())) {
+                List relations = checkForeignKeys((CreateTable) statement);
+                if (!relations.isEmpty())
+                    this.session.setTable((CreateTable) statement, relations);
+                else
+                    this.session.setTable((CreateTable) statement);
+                logger.info("Parsed successfully: " + ((CreateTable) statement).getTable().getWholeTableName());
+            }
         } else if (statement instanceof Select) {
             logger.info("anal");
         } else logger.info("Script is not DDL:" + statement.toString());
@@ -81,8 +90,8 @@ class Parser {
 
     private boolean checkExistence(Table table) {
         boolean notExist = true;
-        for (FormattedTable formattedTable : this.session.getTables()) {
-            if (formattedTable.getTable().getWholeTableName().equals(table.getWholeTableName())) {
+        for (MyTable myTable : this.session.getTables()) {
+            if (myTable.getTable().getWholeTableName().equals(table.getWholeTableName())) {
                 notExist = false;
                 break;
             }
@@ -133,12 +142,12 @@ class Parser {
                     String fullTableName = query.replaceAll(".*([\\/])", "");
                     newTable.setSchemaName(fullTableName.replaceAll("[.].*", ""));
                     newTable.setName(fullTableName.replaceAll(".*[.]", ""));
-                    FormattedTable newFormattedTable = new FormattedTable();
-                    newFormattedTable.setTable(newTable);
-                    newFormattedTable.setRelations(joins);
+                    MyTable newMyTable = new MyTable();
+                    newMyTable.setTable(newTable);
+                    newMyTable.setRelations(joins);
                     ArrayList<ColumnDefinition> newTablesColumns = parseColumns(((PlainSelect) ((Select) statement).getSelectBody()).getSelectItems());
-                    newFormattedTable.setColumns(newTablesColumns);
-                    this.session.setTable(newFormattedTable);
+                    newMyTable.setColumns(newTablesColumns);
+                    this.session.setTable(newMyTable);
                     logger.info("Parsed successfully: " + fullTableName);
                 }
             } catch (JSQLParserException e) {
@@ -152,22 +161,52 @@ class Parser {
     }
 
     // TODO: 01.05.2020 DON'T CATCH DATA TYPE
-    private ArrayList<ColumnDefinition> parseColumns(List selectItems){
+    private ArrayList<ColumnDefinition> parseColumns(List selectItems) {
         ArrayList<ColumnDefinition> columnsArrayList = new ArrayList<>();
-        for (Object obj : selectItems){
+        for (Object obj : selectItems) {
             ColumnDefinition newColumn = new ColumnDefinition();
             String unparsedColumn = obj.toString();
             Matcher asMatcher = Pattern.compile("(?<=AS ).*").matcher(unparsedColumn);
-            if (asMatcher.find()){
+            if (asMatcher.find()) {
                 newColumn.setColumnName(asMatcher.group());
             } else {
-                newColumn.setColumnName(unparsedColumn.replaceAll("([^.]+$)",""));
+                newColumn.setColumnName(unparsedColumn.replaceAll("([^.]+$)", ""));
             }
             columnsArrayList.add(newColumn);
         }
         return columnsArrayList;
     }
 
+    List<String> checkForeignKeys(CreateTable createTable) {
+        List<String> relations = new ArrayList();
+        for (Object col : createTable.getColumnDefinitions()) {
+            String newRelation = checkForeignKey(col);
+            System.out.println("new relation" + newRelation);
+            try {
+                if (newRelation != null)
+                    relations.add(newRelation);
+            } catch (NullPointerException e) {
+                System.out.println(e);
+            }
+        }
+        return relations;
+    }
 
+    String checkForeignKey(Object col) {
+        String fkList = null;
+        Matcher fkMatcher = Pattern.compile("(?<=FOREIGN KEY [(])").matcher(((ColumnDefinition) col).toString());
+        while (fkMatcher.find()) {
+            fkList = getRelatedTable(fkMatcher.group());
+        }
+        return fkList;
+    }
+
+    String getRelatedTable(String columnDefinition) {
+        String relatedTable = null;
+        Matcher matcher = Pattern.compile("(?<=REFERENCES ).*(?= )").matcher(columnDefinition);
+        while (matcher.find())
+            relatedTable = matcher.group();
+        return relatedTable;
+    }
 
 }

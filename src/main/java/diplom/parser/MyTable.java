@@ -6,7 +6,7 @@ import net.sf.jsqlparser.statement.create.table.ColumnDefinition;
 import java.util.ArrayList;
 import java.util.List;
 
-class FormattedTable {
+class MyTable {
     private Table table;
     private ArrayList<ColumnDefinition> columns;
     private List relations;
@@ -19,7 +19,7 @@ class FormattedTable {
         this.columns = columns;
     }
 
-    public void setRelations(List relations) {
+    void setRelations(List relations) {
         this.relations = relations;
     }
 
