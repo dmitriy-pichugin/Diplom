@@ -4,6 +4,7 @@ import net.sf.jsqlparser.JSQLParserException;
 import net.sf.jsqlparser.parser.CCJSqlParserManager;
 import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.Statement;
+import net.sf.jsqlparser.statement.create.table.ColDataType;
 import net.sf.jsqlparser.statement.create.table.ColumnDefinition;
 import net.sf.jsqlparser.statement.create.table.CreateTable;
 import net.sf.jsqlparser.statement.select.*;
@@ -15,44 +16,31 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
-import java.util.logging.FileHandler;
-import java.util.logging.Level;
+import java.util.Objects;
 import java.util.logging.Logger;
-import java.util.logging.SimpleFormatter;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 class Parser {
     private Session session;
     private Logger logger;
     private ArrayList<String> createAsSelectPaths;
 
-    Parser() {
+    Parser(Logger logger) {
         this.session = new Session();
         this.createAsSelectPaths = new ArrayList<>();
-        this.logger = Logger.getLogger("DIPLOM");
-        this.logger.setLevel(Level.INFO);
-        try {
-            DateFormat dateFormat = new SimpleDateFormat("dd_MM_yyyy-HH_mm_ss");
-            Date currentDate = new Date();
-            FileHandler fh = new FileHandler("C:/Diplom/Log/" + dateFormat.format(currentDate) + ".log");
-            fh.setFormatter(new SimpleFormatter());
-            this.logger.addHandler(fh);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        this.logger = logger;
+
     }
 
     Session getSession() {
         return session;
     }
 
-    void parse(String[] args) {
+    void parse(String[] args) throws JSQLParserException {
         for (String filename : args) {
             if (checkCreateAsSelect(filename))
                 continue;
@@ -64,9 +52,6 @@ class Parser {
             } catch (FileNotFoundException e) {
                 logger.severe("File not found: " + filename);
                 e.printStackTrace();
-            } catch (JSQLParserException e) {
-                logger.severe("Can't parse " + filename);
-                e.printStackTrace();
             }
         }
         if (!this.createAsSelectPaths.isEmpty())
@@ -77,9 +62,13 @@ class Parser {
         if (statement instanceof CreateTable) {
             if (checkExistence(((CreateTable) statement).getTable())) {
                 List relations = checkForeignKeys((CreateTable) statement);
-                if (!relations.isEmpty())
+
+                if (!relations.isEmpty()) {
+                    for (int i = 0; i < relations.size(); i++) {
+                        relations.set(i, ((CreateTable) statement).getTable().getSchemaName() + relations.get(i));
+                    }
                     this.session.setTable((CreateTable) statement, relations);
-                else
+                } else
                     this.session.setTable((CreateTable) statement);
                 logger.info("Parsed successfully: " + ((CreateTable) statement).getTable().getWholeTableName());
             }
@@ -103,13 +92,13 @@ class Parser {
         try {
             String script = new String(Files.readAllBytes(Paths.get(path)))
                     .replace("\r", "").replace("\n", "");
-            Matcher asSelectMatcher = Pattern.compile("^CREATE TABLE .*(AS)? SELECT").matcher(script.toUpperCase());
+            Matcher asSelectMatcher = Pattern.compile("^CREATE TABLE .*(AS)? ([( ]?)SELECT").matcher(script.toUpperCase());
             while (asSelectMatcher.find()) {
-                Matcher tableNameRegex = Pattern.compile("(?<=CREATE TABLE ).*(?=(AS)? SELECT)").matcher(script);
+                Matcher tableNameRegex = Pattern.compile("(?<=CREATE TABLE )[^\\s]+").matcher(script);
                 while (tableNameRegex.find()) {
                     String createAsSelectNewFile = "C:/Diplom/Tmp/CreateAsSelect/" + tableNameRegex.group()
                             .replace(" ", "");
-                    Matcher replacer = Pattern.compile("(?=SELECT).*").matcher(script);
+                    Matcher replacer = Pattern.compile("(?=SELECT).*[^);]").matcher(script);
                     while (replacer.find())
                         Files.write(Paths.get(createAsSelectNewFile), replacer.group().getBytes());
                     this.createAsSelectPaths.add(createAsSelectNewFile);
@@ -130,14 +119,18 @@ class Parser {
                 Statement statement = ccjSqlParserManager.parse(new InputStreamReader(
                         new FileInputStream(query), StandardCharsets.UTF_8));
                 if (statement instanceof Select) {
-                    List joins = ((PlainSelect) ((Select) statement).getSelectBody()).getJoins();
+                    List<String> joins = (List<String>) ((PlainSelect) ((Select) statement)
+                            .getSelectBody())
+                            .getJoins()
+                            .stream()
+                            .map(object -> Objects.toString(object, null)).collect(Collectors.toList());
                     for (int i = 0; i < joins.size(); i++) {
                         Matcher m = Pattern.compile("(?<=JOIN ).*(?= ON)").matcher(joins.get(i).toString());
                         while (m.find()) {
-                            joins.set(i, m.group());
+                            joins.set(i, m.group().replaceAll("(?= ).*", ""));
                         }
                     }
-                    joins.add(((PlainSelect) ((Select) statement).getSelectBody()).getFromItem());
+                    joins.add(((PlainSelect) ((Select) statement).getSelectBody()).getFromItem().toString().replaceAll("(?= ).*", ""));
                     Table newTable = new Table();
                     String fullTableName = query.replaceAll(".*([\\/])", "");
                     newTable.setSchemaName(fullTableName.replaceAll("[.].*", ""));
@@ -145,7 +138,7 @@ class Parser {
                     MyTable newMyTable = new MyTable();
                     newMyTable.setTable(newTable);
                     newMyTable.setRelations(joins);
-                    ArrayList<ColumnDefinition> newTablesColumns = parseColumns(((PlainSelect) ((Select) statement).getSelectBody()).getSelectItems());
+                    ArrayList<ColumnDefinition> newTablesColumns = parseColumns(joins, ((PlainSelect) ((Select) statement).getSelectBody()).getSelectItems());
                     newMyTable.setColumns(newTablesColumns);
                     this.session.setTable(newMyTable);
                     logger.info("Parsed successfully: " + fullTableName);
@@ -160,8 +153,7 @@ class Parser {
         }
     }
 
-    // TODO: 01.05.2020 DON'T CATCH DATA TYPE
-    private ArrayList<ColumnDefinition> parseColumns(List selectItems) {
+    private ArrayList<ColumnDefinition> parseColumns(List<String> relations, List selectItems) {
         ArrayList<ColumnDefinition> columnsArrayList = new ArrayList<>();
         for (Object obj : selectItems) {
             ColumnDefinition newColumn = new ColumnDefinition();
@@ -172,29 +164,75 @@ class Parser {
             } else {
                 newColumn.setColumnName(unparsedColumn.replaceAll("([^.]+$)", ""));
             }
+            ColDataType dataType = getColumnDatatype(relations, unparsedColumn);
+            if (dataType != null)
+                newColumn.setColDataType(dataType);
             columnsArrayList.add(newColumn);
         }
         return columnsArrayList;
+    }
+
+    ColDataType getColumnDatatype(List<String> relations, String column) {
+        String colTableName = column.replaceAll("[.].*", "");
+        MyTable relatedTable = findTable(relations, colTableName);
+        System.out.println("Found table: " + relatedTable.getTable().getWholeTableName());
+        ColDataType dataType = findCol(relatedTable, column.replaceAll("(.*[.])|( .*)", ""));
+        System.out.println("Found column " + column + " datatype: " + dataType);
+        return dataType;
+    }
+
+    MyTable findTable(List<String> relations, String colTableName) {
+        MyTable table = null;
+        for (String tableName : relations) {
+            MyTable relatedTable = findTable(tableName);
+            if (relatedTable.getTable().getName().equals(colTableName))
+                table = relatedTable;
+        }
+        return table;
+    }
+
+    MyTable findTable(String tableName) {
+        MyTable foundTable = null;
+        List<MyTable> existingTables = this.session.getTables();
+        for (MyTable table : existingTables) {
+            if (table.getTable().getWholeTableName().equals(tableName)) {
+                foundTable = table;
+                break;
+            }
+        }
+        return foundTable;
+    }
+
+    ColDataType findCol(MyTable table, String searchedColumn) {
+        ColDataType dataType = null;
+        for (ColumnDefinition column : table.getColumns()) {
+            System.out.println("Columns in " + table.getTable().getWholeTableName() + ": " + column.getColumnName());
+            if (column.getColumnName().equals(searchedColumn)) {
+                System.out.println("DATATYPE " + column.getColDataType().toString());
+                dataType = column.getColDataType();
+                break;
+            }
+        }
+        return dataType;
     }
 
     List<String> checkForeignKeys(CreateTable createTable) {
         List<String> relations = new ArrayList();
         for (Object col : createTable.getColumnDefinitions()) {
             String newRelation = checkForeignKey(col);
-            System.out.println("new relation" + newRelation);
             try {
-                if (newRelation != null)
+                if (!newRelation.isEmpty())
                     relations.add(newRelation);
             } catch (NullPointerException e) {
-                System.out.println(e);
             }
         }
         return relations;
     }
 
     String checkForeignKey(Object col) {
-        String fkList = null;
-        Matcher fkMatcher = Pattern.compile("(?<=FOREIGN KEY [(])").matcher(((ColumnDefinition) col).toString());
+        String fkList = "";
+        String colDefinitionString = ((ColumnDefinition) col).toString();
+        Matcher fkMatcher = Pattern.compile("(?<=FOREIGN KEY [(]).*").matcher(colDefinitionString);
         while (fkMatcher.find()) {
             fkList = getRelatedTable(fkMatcher.group());
         }
@@ -202,10 +240,11 @@ class Parser {
     }
 
     String getRelatedTable(String columnDefinition) {
-        String relatedTable = null;
+        String relatedTable = "";
         Matcher matcher = Pattern.compile("(?<=REFERENCES ).*(?= )").matcher(columnDefinition);
-        while (matcher.find())
+        while (matcher.find()) {
             relatedTable = matcher.group();
+        }
         return relatedTable;
     }
 

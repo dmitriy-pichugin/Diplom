@@ -18,7 +18,7 @@
             <configuration>
               <transformers>
                 <transformer>
-                  <mainClass>diplom.parser.Main</mainClass>
+                  <mainClass>diplom.parser.DiagramBuilder</mainClass>
                 </transformer>
               </transformers>
             </configuration>

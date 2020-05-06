@@ -101,7 +101,6 @@ public class Formatter {
             try {
                 formattedRelations.append(relationToDotFormat(table));
             } catch (NullPointerException e) {
-                System.out.println("No relations.");
             }
         }
         return formattedTables.append(formattedRelations).toString();
@@ -111,7 +110,7 @@ public class Formatter {
         String fullTableName = table.getTable().getWholeTableName();
         StringBuilder tableInDot = new StringBuilder();
         tableInDot.append(fullTableName.replace(".", ""))
-                .append(" [shape=none, margin=0, label=<" + "<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\" CELLPADDING=\"4\">" + "<TR><TD COLSPAN=\"2\">")
+                .append(" [style=filled, fillcolor=\"#BFC9CA\", shape=none, margin=0, label=<" + "<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\" CELLPADDING=\"4\">" + "<TR><TD COLSPAN=\"2\">")
                 .append(fullTableName)
                 .append("</TD></TR>");
         for (ColumnDefinition col : table.getColumns()) {
@@ -124,8 +123,8 @@ public class Formatter {
     String relationToDotFormat(MyTable table) {
         String fullTableName = table.getTable().getWholeTableName().replace(".", "");
         StringBuilder relationInDot = new StringBuilder();
-        for (Object relation : table.getRelations()) {
-            relationInDot.append(fullTableName).append("->").append((String) relation).append(";");
+        for (String relation : table.getRelations()) {
+            relationInDot.append(fullTableName).append("->").append(relation.replace(".", "")).append(";");
         }
         return relationInDot.toString();
     }

@@ -16,7 +16,7 @@ class Session {
         setTable(myTable);
     }
 
-    void setTable(CreateTable createTable, List relations){
+    void setTable(CreateTable createTable, List relations) {
         MyTable myTable = new MyTable();
         myTable.setTable(createTable.getTable());
         myTable.setColumns((ArrayList<ColumnDefinition>) createTable.getColumnDefinitions());

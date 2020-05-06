@@ -9,7 +9,7 @@ import java.util.List;
 class MyTable {
     private Table table;
     private ArrayList<ColumnDefinition> columns;
-    private List relations;
+    private List<String> relations;
 
     void setTable(Table table) {
         this.table = table;
@@ -31,7 +31,7 @@ class MyTable {
         return columns;
     }
 
-    public List getRelations() {
+    public List<String> getRelations() {
         return relations;
     }
 }
