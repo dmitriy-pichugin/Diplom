@@ -43,7 +43,9 @@ public class DiagramBuilder {
         formatter.addln(formatter.end_graph());
         String type = "pdf";
         File out = new File("diplom" + "." + type);
-        logger.info(formatter.getDotSource());
+        if (out.delete())
+            logger.info("Deleted old diagram");
+        logger.info("digraph created:\n" + formatter.getDotSource() + "\nwriting to file..");
         formatter.writeGraphToFile(formatter.getGraph(formatter.getDotSource(), type), out);
         return out;
     }
