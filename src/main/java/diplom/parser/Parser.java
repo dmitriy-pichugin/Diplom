@@ -175,9 +175,7 @@ class Parser {
     ColDataType getColumnDatatype(List<String> relations, String column) {
         String colTableName = column.replaceAll("[.].*", "");
         MyTable relatedTable = findTable(relations, colTableName);
-        System.out.println("Found table: " + relatedTable.getTable().getWholeTableName());
         ColDataType dataType = findCol(relatedTable, column.replaceAll("(.*[.])|( .*)", ""));
-        System.out.println("Found column " + column + " datatype: " + dataType);
         return dataType;
     }
 
@@ -206,9 +204,7 @@ class Parser {
     ColDataType findCol(MyTable table, String searchedColumn) {
         ColDataType dataType = null;
         for (ColumnDefinition column : table.getColumns()) {
-            System.out.println("Columns in " + table.getTable().getWholeTableName() + ": " + column.getColumnName());
             if (column.getColumnName().equals(searchedColumn)) {
-                System.out.println("DATATYPE " + column.getColDataType().toString());
                 dataType = column.getColDataType();
                 break;
             }

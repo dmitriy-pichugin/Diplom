@@ -35,15 +35,15 @@ public class DiagramBuilder {
     public File build(String[] args) throws JSQLParserException {
         Parser parser = new Parser(logger);
         parser.parse(args);
-        System.out.println("All tables parsed. Start building diagram.");
+        logger.info("All tables parsed. Start building diagram.");
         Session session = parser.getSession();
-        Formatter formatter = new Formatter();
+        Formatter formatter = new Formatter(logger);
         formatter.addln(formatter.start_graph());
         formatter.add(formatter.toDotFormat(session));
         formatter.addln(formatter.end_graph());
         String type = "pdf";
         File out = new File("diplom" + "." + type);
-        System.out.println(formatter.getDotSource());
+        logger.info(formatter.getDotSource());
         formatter.writeGraphToFile(formatter.getGraph(formatter.getDotSource(), type), out);
         return out;
     }

@@ -4,6 +4,7 @@ import net.sf.jsqlparser.statement.create.table.ColumnDefinition;
 
 import java.io.*;
 import java.util.Properties;
+import java.util.logging.Logger;
 
 public class Formatter {
     private StringBuilder graph = new StringBuilder();
@@ -22,6 +23,11 @@ public class Formatter {
     private static String DOT = configFile.getProperty("dotForWindows");
     private int[] dpiSizes = {46, 51, 57, 63, 70, 78, 86, 96, 106, 116, 128, 141, 155, 170, 187, 206, 226, 249};
     private int currentDpiPos = 7;
+    private Logger logger;
+
+    Formatter(Logger logger) {
+        this.logger = logger;
+    }
 
     public void add(String line) {
         this.graph.append(line);
@@ -55,7 +61,7 @@ public class Formatter {
             if (dot != null) {
                 img_stream = get_img_stream(dot, type);
                 if (dot.delete() == false)
-                    System.err.println("Warning: " + dot.getAbsolutePath() + " could not be deleted!");
+                    logger.severe("Warning: " + dot.getAbsolutePath() + " could not be deleted!");
                 return img_stream;
             }
             return null;
@@ -76,7 +82,7 @@ public class Formatter {
             br.close();
             fout.close();
         } catch (Exception e) {
-            System.err.println("Error: I/O error while writing the dot source to temp file!");
+            logger.severe("Error: I/O error while writing the dot source to temp file!");
             return null;
         }
         return temp;
@@ -149,13 +155,13 @@ public class Formatter {
             if (in != null) in.close();
 
             if (!img.delete())
-                System.err.println("Warning: " + img.getAbsolutePath() + " could not be deleted!");
+                logger.severe("Warning: " + img.getAbsolutePath() + " could not be deleted!");
         } catch (java.io.IOException ioe) {
-            System.err.println("Error:    in I/O processing of tempfile in dir " + TEMP_DIR + "\n");
-            System.err.println("       or in calling external command");
+            logger.severe("Error:    in I/O processing of tempfile in dir " + TEMP_DIR + "\n");
+            logger.severe("       or in calling external command");
             ioe.printStackTrace();
         } catch (java.lang.InterruptedException ie) {
-            System.err.println("Error: the execution of the external program was interrupted");
+            logger.severe("Error: the execution of the external program was interrupted");
             ie.printStackTrace();
         }
 
