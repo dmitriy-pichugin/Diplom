@@ -1,4 +1,4 @@
-package diplom.parser;
+package diplom.visualize;
 
 import net.sf.jsqlparser.JSQLParserException;
 import net.sf.jsqlparser.parser.CCJSqlParserManager;
@@ -7,7 +7,8 @@ import net.sf.jsqlparser.statement.Statement;
 import net.sf.jsqlparser.statement.create.table.ColDataType;
 import net.sf.jsqlparser.statement.create.table.ColumnDefinition;
 import net.sf.jsqlparser.statement.create.table.CreateTable;
-import net.sf.jsqlparser.statement.select.*;
+import net.sf.jsqlparser.statement.select.PlainSelect;
+import net.sf.jsqlparser.statement.select.Select;
 
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -36,13 +37,9 @@ class Parser {
 
     }
 
-    Session getSession() {
-        return session;
-    }
-
     void parse(String[] args) throws JSQLParserException {
         for (String filename : args) {
-            if (checkCreateAsSelect(filename))
+            if (checkCAS(filename))
                 continue;
             CCJSqlParserManager ccjSqlParserManager = new CCJSqlParserManager();
             try {
@@ -55,7 +52,7 @@ class Parser {
             }
         }
         if (!this.createAsSelectPaths.isEmpty())
-            parseCreateAsSelect();
+            parseCAS();
     }
 
     private void parse(Statement statement) {
@@ -88,7 +85,7 @@ class Parser {
         return notExist;
     }
 
-    private boolean checkCreateAsSelect(String path) {
+    private boolean checkCAS(String path) {
         try {
             String script = new String(Files.readAllBytes(Paths.get(path)))
                     .replace("\r", "").replace("\n", "");
@@ -112,7 +109,7 @@ class Parser {
         return false;
     }
 
-    private void parseCreateAsSelect() {
+    private void parseCAS() {
         for (String query : createAsSelectPaths) {
             CCJSqlParserManager ccjSqlParserManager = new CCJSqlParserManager();
             try {
@@ -172,14 +169,14 @@ class Parser {
         return columnsArrayList;
     }
 
-    ColDataType getColumnDatatype(List<String> relations, String column) {
+    private ColDataType getColumnDatatype(List<String> relations, String column) {
         String colTableName = column.replaceAll("[.].*", "");
         MyTable relatedTable = findTable(relations, colTableName);
         ColDataType dataType = findCol(relatedTable, column.replaceAll("(.*[.])|( .*)", ""));
         return dataType;
     }
 
-    MyTable findTable(List<String> relations, String colTableName) {
+    private MyTable findTable(List<String> relations, String colTableName) {
         MyTable table = null;
         for (String tableName : relations) {
             MyTable relatedTable = findTable(tableName);
@@ -189,7 +186,7 @@ class Parser {
         return table;
     }
 
-    MyTable findTable(String tableName) {
+    private MyTable findTable(String tableName) {
         MyTable foundTable = null;
         List<MyTable> existingTables = this.session.getTables();
         for (MyTable table : existingTables) {
@@ -201,7 +198,7 @@ class Parser {
         return foundTable;
     }
 
-    ColDataType findCol(MyTable table, String searchedColumn) {
+    private ColDataType findCol(MyTable table, String searchedColumn) {
         ColDataType dataType = null;
         for (ColumnDefinition column : table.getColumns()) {
             if (column.getColumnName().equals(searchedColumn)) {
@@ -212,7 +209,7 @@ class Parser {
         return dataType;
     }
 
-    List<String> checkForeignKeys(CreateTable createTable) {
+    private List<String> checkForeignKeys(CreateTable createTable) {
         List<String> relations = new ArrayList();
         for (Object col : createTable.getColumnDefinitions()) {
             String newRelation = checkForeignKey(col);
@@ -225,7 +222,7 @@ class Parser {
         return relations;
     }
 
-    String checkForeignKey(Object col) {
+    private String checkForeignKey(Object col) {
         String fkList = "";
         String colDefinitionString = ((ColumnDefinition) col).toString();
         Matcher fkMatcher = Pattern.compile("(?<=FOREIGN KEY [(]).*").matcher(colDefinitionString);
@@ -235,13 +232,17 @@ class Parser {
         return fkList;
     }
 
-    String getRelatedTable(String columnDefinition) {
+    private String getRelatedTable(String columnDefinition) {
         String relatedTable = "";
         Matcher matcher = Pattern.compile("(?<=REFERENCES ).*(?= )").matcher(columnDefinition);
         while (matcher.find()) {
             relatedTable = matcher.group();
         }
         return relatedTable;
+    }
+
+    Session getSession() {
+        return session;
     }
 
 }

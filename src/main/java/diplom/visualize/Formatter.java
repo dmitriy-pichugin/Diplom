@@ -1,4 +1,4 @@
-package diplom.parser;
+package diplom.visualize;
 
 import net.sf.jsqlparser.statement.create.table.ColumnDefinition;
 

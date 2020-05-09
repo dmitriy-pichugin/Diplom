@@ -1,4 +1,4 @@
-import diplom.parser.DiagramBuilder;
+import diplom.visualize.DiagramBuilder;
 
 import javax.swing.*;
 import java.awt.*;
@@ -7,45 +7,74 @@ import java.awt.event.ActionListener;
 import java.io.File;
 import java.util.ArrayList;
 
+/**
+ * Реализует графический интерфейс пользователя.
+ */
 public class SimpleGui extends JFrame {
+    /**
+     * Главное окно интерфейса
+     */
     private JPanel mainPanel;
+    /**
+     * Кнопка добавления файлов
+     */
     private JButton addFiles;
-    private JTextArea textArea1;
+    /**
+     * Кнопка запуска основной программы
+     */
     private JButton runner;
+    /**
+     * Текстовое поле, в котором отображаются пути к входным файлам
+     */
+    private JTextArea textArea;
+    /**
+     * Диалоговое окно выбора файлов
+     */
     private JFileChooser fileChooser;
-    private JFileChooser diagramSaver;
+    /**
+     * Массив, хранящий пути к входных данным
+     */
     private ArrayList<String> paths = new ArrayList<>();
 
-    public SimpleGui(String title) {
+    /**
+     * Конструктор класса. Обрабатывает действия пользователя
+     *
+     * @param title заголовок диалогового окна
+     */
+    private SimpleGui(String title) {
         super(title);
         this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         this.setContentPane(mainPanel);
         this.pack();
+        /* Конфигурация диалогового окна */
         this.fileChooser = new JFileChooser();
         fileChooser.setCurrentDirectory(new File("C:/Diplom/Test"));
         fileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
         fileChooser.setMultiSelectionEnabled(true);
-        this.diagramSaver = new JFileChooser();
         addFiles.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent actionEvent) {
-                int option = fileChooser.showOpenDialog(null); // parentComponent must a component like JFrame, JDialog...
+                /* При нажатии на клавишу Select Files выполняется следующий код */
+                int option = fileChooser.showOpenDialog(null);
                 if (option == JFileChooser.APPROVE_OPTION) {
+                    /* Путь к выбранным файлам заносится в массив */
                     File[] selectedFiles = fileChooser.getSelectedFiles();
                     for (File selectedFile : selectedFiles) {
                         String newPath = selectedFile.getAbsolutePath();
+                        /* Проверка, есть ли уже выбранный файл в массиве */
                         if (!paths.contains(newPath))
                             paths.add(newPath);
                     }
                     StringBuilder pathsToShow = new StringBuilder();
                     paths.forEach(path -> pathsToShow.append(path).append("\r\n"));
-                    textArea1.setText(pathsToShow.toString());
+                    textArea.setText(pathsToShow.toString());
                 }
             }
         });
         runner.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent actionEvent) {
+                /* При нажатии на клавишу Make Diagram выполняется основной код программы */
                 try {
                     DiagramBuilder diagramBuilder = new DiagramBuilder();
                     File out = diagramBuilder.build(paths.toArray(new String[paths.size()]));
@@ -58,6 +87,11 @@ public class SimpleGui extends JFrame {
         });
     }
 
+    /**
+     * Точка входа программы
+     *
+     * @param args входной массив метода (остается пустым)
+     */
     public static void main(String[] args) {
         JFrame frame = new SimpleGui("Make diagram from SQL DDL");
         frame.setVisible(true);
@@ -83,9 +117,9 @@ public class SimpleGui extends JFrame {
         final JScrollPane scrollPane1 = new JScrollPane();
         scrollPane1.setVerticalScrollBarPolicy(22);
         mainPanel.add(scrollPane1, new com.intellij.uiDesigner.core.GridConstraints(0, 0, 1, 2, com.intellij.uiDesigner.core.GridConstraints.ANCHOR_CENTER, com.intellij.uiDesigner.core.GridConstraints.FILL_BOTH, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_CAN_SHRINK | com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_WANT_GROW, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_CAN_SHRINK | com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_WANT_GROW, new Dimension(300, 200), new Dimension(500, 400), new Dimension(1000, 800), 0, false));
-        textArea1 = new JTextArea();
-        textArea1.setEditable(false);
-        scrollPane1.setViewportView(textArea1);
+        textArea = new JTextArea();
+        textArea.setEditable(false);
+        scrollPane1.setViewportView(textArea);
         addFiles = new JButton();
         addFiles.setText("Select files");
         mainPanel.add(addFiles, new com.intellij.uiDesigner.core.GridConstraints(1, 0, 1, 1, com.intellij.uiDesigner.core.GridConstraints.ANCHOR_CENTER, com.intellij.uiDesigner.core.GridConstraints.FILL_HORIZONTAL, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_CAN_SHRINK | com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_CAN_GROW, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_FIXED, new Dimension(90, 30), new Dimension(150, 50), new Dimension(180, 60), 0, false));
