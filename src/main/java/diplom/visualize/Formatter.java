@@ -6,9 +6,21 @@ import java.io.*;
 import java.util.Properties;
 import java.util.logging.Logger;
 
+/**
+ * Отвечает за построение диаграммы
+ */
 public class Formatter {
+    /**
+     * Хранит DOT запрос для создания диаграммы
+     */
     private StringBuilder graph = new StringBuilder();
+    /**
+     * Путь к конфигурационному файлу
+     */
     private final static String cfgProp = "C:/Diplom/GraphVizApi/Data/config.properties";
+    /**
+     * Конфигурация
+     */
     private final static Properties configFile = new Properties() {
         private final static long serialVersionUID = 1L;
 
@@ -19,41 +31,96 @@ public class Formatter {
             }
         }
     };
+    /**
+     * Путь к директории для временных файлов
+     */
     private static String TEMP_DIR = "C:/Diplom/Tmp/GraphVizTmp";
+    /**
+     * Путь к dot.exe
+     */
     private static String DOT = configFile.getProperty("dotForWindows");
+    /**
+     * Значения dpi для dot
+     */
     private int[] dpiSizes = {46, 51, 57, 63, 70, 78, 86, 96, 106, 116, 128, 141, 155, 170, 187, 206, 226, 249};
+    /**
+     * Параметр Gdpi для dot
+     */
     private int currentDpiPos = 7;
+    /**
+     * Модуль логирования программы
+     */
     private Logger logger;
 
+    /**
+     * Конструктор. Инициализирует модуль логирования
+     *
+     * @param logger модуль логирования
+     */
     Formatter(Logger logger) {
         this.logger = logger;
     }
 
-    public void add(String line) {
+    /**
+     * Добавляет строку в graph
+     *
+     * @param line добавляемая строка
+     */
+    void add(String line) {
         this.graph.append(line);
     }
 
-    public void addln(String line) {
+    /**
+     * Добавляет строку и переход на новую строку в graph
+     *
+     * @param line добавляемая строка
+     */
+    void addln(String line) {
         this.graph.append(line + "\n");
     }
 
+    /**
+     * Добавляет переход на новую строку в graph
+     */
     public void addln() {
         this.graph.append('\n');
     }
 
-    public String start_graph() {
+    /**
+     * Добавляет начало dot запроса
+     *
+     * @return начало запроса
+     */
+    String start_graph() {
         return "digraph G {";
     }
 
-    public String end_graph() {
+    /**
+     * Добавляет завершение dot запроса
+     *
+     * @return завершение запроса
+     */
+    String end_graph() {
         return "}";
     }
 
-    public String getDotSource() {
+    /**
+     * Возвращает dot запрос
+     *
+     * @return
+     */
+    String getDotSource() {
         return this.graph.toString();
     }
 
-    public byte[] getGraph(String dot_source, String type) {
+    /**
+     * Возвращает диаграмму в виде массива байт
+     *
+     * @param dot_source dot запрос
+     * @param type тип файла
+     * @return диаграмма
+     */
+    byte[] getGraph(String dot_source, String type) {
         File dot;
         byte[] img_stream = null;
         try {
@@ -70,6 +137,13 @@ public class Formatter {
         }
     }
 
+    /**
+     * Запись dot запроса в файл
+     *
+     * @param str dot запрос
+     * @return файл
+     * @throws java.io.IOException ошибка при записи
+     */
     private File writeDotSourceToFile(String str) throws java.io.IOException {
         File temp;
         try {
@@ -88,7 +162,14 @@ public class Formatter {
         return temp;
     }
 
-    public int writeGraphToFile(byte[] img, File to) {
+    /**
+     * Запись диаграммы в файл
+     *
+     * @param img диаграмма
+     * @param to файл
+     * @return 1, если успешно, иначе -1
+     */
+    int writeGraphToFile(byte[] img, File to) {
         try {
             FileOutputStream fos = new FileOutputStream(to);
             fos.write(img);
@@ -99,6 +180,12 @@ public class Formatter {
         return 1;
     }
 
+    /**
+     * Построение dot запроса
+     *
+     * @param thisSession текущий session, по которому строится запрос
+     * @return dot запрос
+     */
     String toDotFormat(Session thisSession) {
         StringBuilder formattedTables = new StringBuilder();
         StringBuilder formattedRelations = new StringBuilder();
@@ -112,7 +199,13 @@ public class Formatter {
         return formattedTables.append(formattedRelations).toString();
     }
 
-    String tableToDotFormat(MyTable table) {
+    /**
+     * Представление таблицы в виде части dot запроса
+     *
+     * @param table таблица
+     * @return строка в формате dot
+     */
+    private String tableToDotFormat(MyTable table) {
         String fullTableName = table.getTable().getWholeTableName();
         StringBuilder tableInDot = new StringBuilder();
         tableInDot.append(fullTableName.replace(".", ""))
@@ -126,7 +219,13 @@ public class Formatter {
         return tableInDot.toString();
     }
 
-    String relationToDotFormat(MyTable table) {
+    /**
+     * Представление отношения в виде части dot запроса
+     *
+     * @param table таблица, у которой проверяются зависимости
+     * @return строка в формате dot
+     */
+    private String relationToDotFormat(MyTable table) {
         String fullTableName = table.getTable().getWholeTableName().replace(".", "");
         StringBuilder relationInDot = new StringBuilder();
         for (String relation : table.getRelations()) {
@@ -135,6 +234,13 @@ public class Formatter {
         return relationInDot.toString();
     }
 
+    /**
+     * Выполнение dot запроса
+     *
+     * @param dot файл с dot запросом
+     * @param type расширение диаграммы (png)
+     * @return диаграмма
+     */
     private byte[] get_img_stream(File dot, String type) {
         File img;
         byte[] img_stream = null;
