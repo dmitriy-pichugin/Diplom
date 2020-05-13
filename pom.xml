@@ -22,6 +22,16 @@
     <build>
         <plugins>
             <plugin>
+                <groupId>com.intellij</groupId>
+                <artifactId>forms_rt</artifactId>
+                <version>7.0.3</version>
+                <configuration>
+                    <manifest>
+                        <addClassPath>true</addClassPath>
+                    </manifest>
+                </configuration>
+            </plugin>
+            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
                 <version>3.2.0</version>
@@ -35,7 +45,7 @@
                             <transformers>
                                 <transformer
                                         implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>diplom.visualize.DiagramBuilder</mainClass>
+                                    <mainClass>diplom.visualize.DiagramBuilder.SimpleGui</mainClass>
                                 </transformer>
                             </transformers>
                         </configuration>

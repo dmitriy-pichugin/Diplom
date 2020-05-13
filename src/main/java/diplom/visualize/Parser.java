@@ -83,7 +83,7 @@ class Parser {
      *
      * @param statement преобразуемый объект типа Statement
      */
-    private void parse(Statement statement) {
+    private void parse(Statement statement) throws JSQLParserException {
         if (statement instanceof CreateTable) {
             /* Проверка дубликатов запросов во входных данных */
             if (checkExistence(((CreateTable) statement).getTable())) {
@@ -98,6 +98,8 @@ class Parser {
                     this.session.setTable((CreateTable) statement);
                 logger.info("Parsed successfully: " + ((CreateTable) statement).getTable().getWholeTableName());
             }
+        } else if (statement instanceof Select) {
+            throw new JSQLParserException("Select statement found!");
         } else logger.info("Script is not DDL:" + statement.toString());
     }
 
@@ -130,8 +132,8 @@ class Parser {
             String script = new String(Files.readAllBytes(Paths.get(path)))
                     .replace("\r", "").replace("\n", "");
             /* Проверка соответствия типа запроса типу CREATE TABLE AS SELECT
-            * Если соответствует - запрос форматируется и сохраняется во временную директорию.
-            */
+             * Если соответствует - запрос форматируется и сохраняется во временную директорию.
+             */
             Matcher asSelectMatcher = Pattern.compile("^CREATE TABLE .*(AS)? ([( ]?)SELECT").matcher(script.toUpperCase());
             while (asSelectMatcher.find()) {
                 Matcher tableNameRegex = Pattern.compile("(?<=CREATE TABLE )[^\\s]+").matcher(script);
