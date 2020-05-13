@@ -98,8 +98,6 @@ class Parser {
                     this.session.setTable((CreateTable) statement);
                 logger.info("Parsed successfully: " + ((CreateTable) statement).getTable().getWholeTableName());
             }
-        } else if (statement instanceof Select) {
-            logger.info("anal");
         } else logger.info("Script is not DDL:" + statement.toString());
     }
 
