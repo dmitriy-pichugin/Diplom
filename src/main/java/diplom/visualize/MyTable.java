@@ -9,11 +9,7 @@ import java.util.List;
 /**
  * Экземпляры класса – преобразованные таблицы
  */
-class MyTable {
-    /**
-     * Объект, хранящий имя таблицы и схемы
-     */
-    private Table table;
+class MyTable extends Table{
     /**
      * Множество атрибутов таблицы, их типов и свойств
      */
@@ -29,7 +25,8 @@ class MyTable {
      * @param table new table
      */
     void setTable(Table table) {
-        this.table = table;
+        super.setSchemaName(table.getSchemaName());
+        super.setName(table.getName());
     }
 
     /**
@@ -56,7 +53,7 @@ class MyTable {
      * @return table
      */
     Table getTable() {
-        return table;
+        return (Table) this;
     }
 
     /**
@@ -73,7 +70,7 @@ class MyTable {
      *
      * @return relations
      */
-    List<String> getRelations() {
+        List<String> getRelations() {
         return relations;
     }
 }

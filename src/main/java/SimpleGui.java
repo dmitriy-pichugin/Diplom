@@ -30,7 +30,7 @@ public class SimpleGui extends JFrame {
     /**
      * Диалоговое окно выбора файлов
      */
-    private JFileChooser fileChooser;
+        private JFileChooser fileChooser;
     /**
      * Массив, хранящий пути к входных данным
      */
