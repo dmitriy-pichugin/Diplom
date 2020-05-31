@@ -9,7 +9,7 @@ import java.util.List;
 /**
  * Экземпляры класса – преобразованные таблицы
  */
-class MyTable extends Table{
+class MyTable extends Table {
     /**
      * Множество атрибутов таблицы, их типов и свойств
      */
@@ -35,6 +35,8 @@ class MyTable extends Table{
      * @param columns new columns
      */
     void setColumns(ArrayList<ColumnDefinition> columns) {
+        for (int i = 0; i < columns.size(); i++)
+            columns.removeIf(columnDefinition -> columnDefinition.getColumnName().toUpperCase().equals("CONSTRAINT"));
         this.columns = columns;
     }
 
@@ -70,7 +72,7 @@ class MyTable extends Table{
      *
      * @return relations
      */
-        List<String> getRelations() {
+    List<String> getRelations() {
         return relations;
     }
 }
