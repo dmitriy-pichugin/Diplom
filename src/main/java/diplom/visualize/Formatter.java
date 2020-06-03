@@ -3,6 +3,7 @@ package diplom.visualize;
 import net.sf.jsqlparser.statement.create.table.ColumnDefinition;
 
 import java.io.*;
+import java.util.Arrays;
 import java.util.Properties;
 import java.util.logging.Logger;
 
@@ -229,7 +230,7 @@ public class Formatter {
         String fullTableName = table.getTable().getWholeTableName().replace(".", "");
         StringBuilder relationInDot = new StringBuilder();
         for (String relation : table.getRelations()) {
-            relationInDot.append(fullTableName).append("->").append(relation.replace(".", "")).append(";");
+            relationInDot.append(relation.replace(".", "")).append("->").append(fullTableName).append(";");
         }
         return relationInDot.toString();
     }
@@ -250,6 +251,7 @@ public class Formatter {
             Runtime rt = Runtime.getRuntime();
 
             String[] args = {DOT, "-T" + type, "-Gdpi=" + dpiSizes[this.currentDpiPos], dot.getAbsolutePath(), "-o", img.getAbsolutePath()};
+            logger.info("Starting GraphViz. Trying to execute:\n" + Arrays.toString(args));
             Process p = rt.exec(args);
 
             p.waitFor();

@@ -10,10 +10,7 @@ import net.sf.jsqlparser.statement.create.table.CreateTable;
 import net.sf.jsqlparser.statement.select.PlainSelect;
 import net.sf.jsqlparser.statement.select.Select;
 
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -64,10 +61,14 @@ class Parser {
         for (String filename : args) {
             if (checkCAS(filename))
                 continue;
-            CCJSqlParserManager ccjSqlParserManager = new CCJSqlParserManager();
             try {
-                Statement statement = ccjSqlParserManager.parse(new InputStreamReader(
-                        new FileInputStream(filename), StandardCharsets.UTF_8));
+                InputStreamReader inputStreamReader = new InputStreamReader(
+                        new FileInputStream(filename), StandardCharsets.UTF_8);
+                BufferedReader bufferedReader = new BufferedReader(inputStreamReader);
+                String script = bufferedReader.lines().collect(Collectors.joining(System.lineSeparator()));
+                script = formatScript(script);
+                CCJSqlParserManager ccjSqlParserManager = new CCJSqlParserManager();
+                Statement statement = ccjSqlParserManager.parse(new StringReader(script));
                 parse(statement);
             } catch (FileNotFoundException e) {
                 logger.severe("File not found: " + filename);
@@ -76,6 +77,17 @@ class Parser {
         }
         if (!this.createAsSelectPaths.isEmpty())
             parseCAS();
+    }
+
+    /**
+     * Удаляет объявление суррогатных ключей для Oracle скрипта.
+     * (Необходимо для JSqlParser)
+     *
+     * @param script SQL DDL
+     * @return SQL DDL без объявления суррогатных ключей
+     */
+    private String formatScript(String script){
+        return script.replaceAll("GENERATED .*(?=[,])", "");
     }
 
     /**

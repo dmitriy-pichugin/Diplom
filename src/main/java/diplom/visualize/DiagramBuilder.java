@@ -59,7 +59,7 @@ public class DiagramBuilder {
         formatter.add(formatter.toDotFormat(session));
         formatter.addln(formatter.end_graph());
         String type = "pdf";
-        File out = new File("diplom" + "." + type);
+        File out = new File("DIAGRAM" + "." + type);
         /* Удаляет старую диаграмму, если она существует */
         if (out.delete())
             logger.info("Deleted old diagram");
