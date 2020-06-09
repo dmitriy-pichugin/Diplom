@@ -28,7 +28,7 @@
             <configuration>
               <transformers>
                 <transformer>
-                  <mainClass>diplom.visualize.DiagramBuilder.SimpleGui</mainClass>
+                  <mainClass>vizualize.builder.DiagramBuilder.SimpleGui</mainClass>
                 </transformer>
               </transformers>
             </configuration>

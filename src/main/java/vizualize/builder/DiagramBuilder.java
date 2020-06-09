@@ -1,4 +1,4 @@
-package diplom.visualize;
+package vizualize.builder;
 
 import net.sf.jsqlparser.JSQLParserException;
 

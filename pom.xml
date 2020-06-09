@@ -45,7 +45,7 @@
                             <transformers>
                                 <transformer
                                         implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>diplom.visualize.DiagramBuilder.SimpleGui</mainClass>
+                                    <mainClass>vizualize.gui.SimpleGui</mainClass>
                                 </transformer>
                             </transformers>
                         </configuration>

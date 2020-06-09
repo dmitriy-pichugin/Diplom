@@ -1,4 +1,4 @@
-package diplom.visualize;
+package vizualize.builder;
 
 import net.sf.jsqlparser.JSQLParserException;
 import net.sf.jsqlparser.parser.CCJSqlParserManager;
@@ -14,9 +14,7 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -37,7 +35,7 @@ class Parser {
     /**
      * Массив путей к CTAS скриптам
      */
-    private ArrayList<String> createAsSelectPaths;
+    private Queue<String> createAsSelectPaths;
 
     /**
      * Конструктор. Инициализирует модуль логирования
@@ -46,7 +44,7 @@ class Parser {
      */
     Parser(Logger logger) {
         this.session = new Session();
-        this.createAsSelectPaths = new ArrayList<>();
+        this.createAsSelectPaths = new LinkedList<>();
         this.logger = logger;
 
     }
@@ -86,7 +84,7 @@ class Parser {
      * @param script SQL DDL
      * @return SQL DDL без объявления суррогатных ключей
      */
-    private String formatScript(String script){
+    private String formatScript(String script) {
         return script.replaceAll("GENERATED .*(?=[,])", "");
     }
 
@@ -142,11 +140,11 @@ class Parser {
         try {
             /* Форматирование запроса */
             String script = new String(Files.readAllBytes(Paths.get(path)))
-                    .replace("\r", "").replace("\n", "");
+                    .replace("\r", "").replace("\n", "").replace("\t", " ");
             /* Проверка соответствия типа запроса типу CREATE TABLE AS SELECT
              * Если соответствует - запрос форматируется и сохраняется во временную директорию.
              */
-            Matcher asSelectMatcher = Pattern.compile("^CREATE TABLE .*(AS)? ([( ]?)SELECT").matcher(script.toUpperCase());
+            Matcher asSelectMatcher = Pattern.compile("^CREATE TABLE .*(AS)?SELECT").matcher(script.toUpperCase());
             while (asSelectMatcher.find()) {
                 Matcher tableNameRegex = Pattern.compile("(?<=CREATE TABLE )[^\\s]+").matcher(script);
                 while (tableNameRegex.find()) {
@@ -155,7 +153,7 @@ class Parser {
                     Matcher replacer = Pattern.compile("(?=SELECT).*[^);]").matcher(script);
                     while (replacer.find())
                         Files.write(Paths.get(createAsSelectNewFile), replacer.group().getBytes());
-                    this.createAsSelectPaths.add(createAsSelectNewFile);
+                    this.createAsSelectPaths.offer(createAsSelectNewFile);
                     logger.info("Found CREATE AS SELECT in " + createAsSelectNewFile + ". Copied to temporary directory.");
                     return true;
                 }
@@ -170,27 +168,26 @@ class Parser {
      * Преобразует SQL CTAS скрипты в объекты MyTable, добавляет в session
      */
     private void parseCAS() {
-        for (String query : createAsSelectPaths) {
+        String query;
+        int iteration = 0;
+        for (int i = 0; i < createAsSelectPaths.size(); i++)
+            iteration += i + 1;
+        while ((query = createAsSelectPaths.poll()) != null) {
             CCJSqlParserManager ccjSqlParserManager = new CCJSqlParserManager();
             try {
                 /* Запрос преобразуется в Statement */
                 Statement statement = ccjSqlParserManager.parse(new InputStreamReader(
                         new FileInputStream(query), StandardCharsets.UTF_8));
                 if (statement instanceof Select) {
-                    /* Из запроса извлекаются join соединения */
-                    List<String> joins = (List<String>) ((PlainSelect) ((Select) statement)
-                            .getSelectBody())
-                            .getJoins()
-                            .stream()
-                            .map(object -> Objects.toString(object, null)).collect(Collectors.toList());
-                    /* Join соединения форматируются, извлекаются зависимые таблицы */
-                    for (int i = 0; i < joins.size(); i++) {
-                        Matcher m = Pattern.compile("(?<=JOIN ).*(?= ON)").matcher(joins.get(i).toString());
-                        while (m.find()) {
-                            joins.set(i, m.group().replaceAll("(?= ).*", ""));
-                        }
+                    /* Из запроса извлекаются и форматируются join соединения */
+                    List<String> joins = formatJoins(statement);
+                    if (!findTables(joins)) {
+                        createAsSelectPaths.offer(query);
+                        iteration--;
+                        if (iteration == 0)
+                            break;
+                        continue;
                     }
-                    joins.add(((PlainSelect) ((Select) statement).getSelectBody()).getFromItem().toString().replaceAll("(?= ).*", ""));
                     Table newTable = new Table();
                     /* Извлекается название создаваемой таблицы и схемы */
                     String fullTableName = query.replaceAll(".*([\\/])", "");
@@ -213,6 +210,54 @@ class Parser {
                 e.printStackTrace();
             }
         }
+    }
+
+    /**
+     * Извлекаются и форматируются соединения, на которых строится CTAS таблица
+     *
+     * @param statement CREATE запрос таблицы
+     * @return форматированные соединения
+     */
+    private List<String> formatJoins(Statement statement) {
+        List<String> joins = null;
+        try {
+            joins = (List<String>) ((PlainSelect) ((Select) statement)
+                    .getSelectBody())
+                    .getJoins()
+                    .stream()
+                    .map(object -> Objects.toString(object, null)).collect(Collectors.toList());
+            for (int i = 0; i < joins.size(); i++) {
+                Matcher m = Pattern.compile("(?<=JOIN ).*(?= ON)").matcher(joins.get(i).toString());
+                while (m.find()) {
+                    joins.set(i, m.group().replaceAll("(?= ).*", ""));
+                }
+            }
+            joins.add(((PlainSelect) ((Select) statement).getSelectBody()).getFromItem().toString().replaceAll("(?= ).*", ""));
+            return joins;
+        } catch (NullPointerException ignored) {
+        }
+        joins = new ArrayList<>();
+        joins.add(((PlainSelect) ((Select) statement).getSelectBody()).getFromItem().toString().replaceAll("(?= ).*", ""));
+        return joins;
+    }
+
+    /**
+     * Ищет таблицы из списка
+     *
+     * @param joins Список таблиц
+     * @return true, если хотя бы одна таблица найдена. false, если не найдена
+     */
+    private boolean findTables(List<String> joins) {
+        try {
+
+            for (int i = 0; i < joins.size(); i++) {
+                if (!findTable(joins.get(i)).getTable().getWholeTableName().isEmpty())
+                    return true;
+            }
+        } catch (NullPointerException e) {
+            e.printStackTrace();
+        }
+        return false;
     }
 
     /**
