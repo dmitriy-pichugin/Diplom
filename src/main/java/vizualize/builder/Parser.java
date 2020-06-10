@@ -64,10 +64,8 @@ class Parser {
                         new FileInputStream(filename), StandardCharsets.UTF_8);
                 BufferedReader bufferedReader = new BufferedReader(inputStreamReader);
                 String script = bufferedReader.lines().collect(Collectors.joining(System.lineSeparator()));
-                script = formatScript(script);
-                CCJSqlParserManager ccjSqlParserManager = new CCJSqlParserManager();
-                Statement statement = ccjSqlParserManager.parse(new StringReader(script));
-                parse(statement);
+                script = formatAutoInc(script);
+                parse(script);
             } catch (FileNotFoundException e) {
                 logger.severe("File not found: " + filename);
                 e.printStackTrace();
@@ -84,24 +82,31 @@ class Parser {
      * @param script SQL DDL
      * @return SQL DDL без объявления суррогатных ключей
      */
-    private String formatScript(String script) {
+    private String formatAutoInc(String script) {
         return script.replaceAll("GENERATED .*(?=[,])", "");
     }
 
     /**
      * Преобразует объект Statement в MyTable, добавляет его в session
      *
-     * @param statement преобразуемый объект типа Statement
+     * @param script преобразуемый скрипт
      */
-    private void parse(Statement statement) throws JSQLParserException {
+    private void parse(String script) throws JSQLParserException {
+        script = formatScript(script);
+        List alterForeignKeys = checkForeignKeys(script);
+        script = cutAlterTable(script);
+        CCJSqlParserManager ccjSqlParserManager = new CCJSqlParserManager();
+        Statement statement = ccjSqlParserManager.parse(new StringReader(script));
         if (statement instanceof CreateTable) {
             /* Проверка дубликатов запросов во входных данных */
             if (checkExistence(((CreateTable) statement).getTable())) {
                 /* Извлечение зависимостей из запроса */
                 List relations = checkForeignKeys((CreateTable) statement);
+                if (!alterForeignKeys.isEmpty()) relations.addAll(alterForeignKeys);
                 if (!relations.isEmpty()) {
                     for (int i = 0; i < relations.size(); i++) {
-                        relations.set(i, ((CreateTable) statement).getTable().getSchemaName() + relations.get(i));
+                        if (!((CreateTable) statement).getTable().getWholeTableName().equals(((CreateTable) statement).getTable().getName()))
+                            relations.set(i, ((CreateTable) statement).getTable().getSchemaName() + relations.get(i));
                     }
                     this.session.setTable((CreateTable) statement, relations);
                 } else
@@ -111,6 +116,27 @@ class Parser {
         } else if (statement instanceof Select) {
             throw new JSQLParserException("Select statement found!");
         } else logger.info("Script is not DDL:" + statement.toString());
+    }
+
+    private String formatScript(String script) {
+        return script.replace("\r", "")
+                .replace("\n", "")
+                .replace("\t", " ")
+                .replaceAll("( )+", " ");
+    }
+
+    private List<String> checkForeignKeys(String script) {
+        List<String> foreignKeys = new ArrayList<>();
+        Matcher matcher = Pattern.compile("(?<=FOREIGN KEY (.*) REFERENCES )\\w+(?= [(])").matcher(script);
+        while (matcher.find()) {
+            logger.info("Found ALTER TABLE, adding FOREIGN KEY dependency with: " + matcher.group());
+            foreignKeys.add(matcher.group());
+        }
+        return foreignKeys;
+    }
+
+    private String cutAlterTable(String script) {
+        return script.replaceAll("ALTER TABLE(.*)", "");
     }
 
     /**
@@ -191,7 +217,9 @@ class Parser {
                     Table newTable = new Table();
                     /* Извлекается название создаваемой таблицы и схемы */
                     String fullTableName = query.replaceAll(".*([\\/])", "");
-                    newTable.setSchemaName(fullTableName.replaceAll("[.].*", ""));
+                    Matcher dotMatcher = Pattern.compile("[.]").matcher(fullTableName);
+                    while (dotMatcher.find())
+                        newTable.setSchemaName(fullTableName.replaceAll("[.].*", ""));
                     newTable.setName(fullTableName.replaceAll(".*[.]", ""));
                     MyTable newMyTable = new MyTable();
                     newMyTable.setTable(newTable);
@@ -233,11 +261,13 @@ class Parser {
                 }
             }
             joins.add(((PlainSelect) ((Select) statement).getSelectBody()).getFromItem().toString().replaceAll("(?= ).*", ""));
+            System.out.println(joins);
             return joins;
         } catch (NullPointerException ignored) {
         }
         joins = new ArrayList<>();
         joins.add(((PlainSelect) ((Select) statement).getSelectBody()).getFromItem().toString().replaceAll("(?= ).*", ""));
+        System.out.println(joins);
         return joins;
     }
 
